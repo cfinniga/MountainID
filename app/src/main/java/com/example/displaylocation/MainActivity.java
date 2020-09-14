@@ -1,4 +1,9 @@
-// Location getting code from youtube tutorial
+/* Location getting code from youtube tutorial by Android Coding
+How to Get Current Location in Android Studio | CurrentLocation | Android Coding
+https://www.youtube.com/watch?v=Ak1O9Gip-pg
+
+ */
+
 package com.example.displaylocation;
 
 import androidx.annotation.NonNull;
