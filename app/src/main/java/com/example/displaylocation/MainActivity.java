@@ -28,6 +28,25 @@ import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.QuerySnapshot;
+import com.google.maps.FindPlaceFromTextRequest;
+import com.google.maps.GeoApiContext;
+import com.google.maps.GeocodingApi;
+import com.google.maps.GeocodingApiRequest;
+import com.google.maps.PlacesApi;
+import com.google.maps.errors.ApiException;
+import com.google.maps.model.FindPlaceFromText;
+import com.google.maps.model.GeocodingResult;
+import com.google.maps.model.LatLng;
+import com.google.maps.model.PlaceType;
+
+import com.google.maps.FindPlaceFromTextRequest.InputType;
+import com.google.maps.FindPlaceFromTextRequest.LocationBiasCircular;
+import com.google.maps.FindPlaceFromTextRequest.LocationBiasIP;
+import com.google.maps.FindPlaceFromTextRequest.LocationBiasPoint;
+import com.google.maps.FindPlaceFromTextRequest.LocationBiasRectangular;
 
 import java.io.IOException;
 import java.util.Calendar;
@@ -40,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
     TextView textView1, textView2, textView3, textView4, textView5;
     FusedLocationProviderClient fusedLocationProviderClient;
     private static final String TAG = "MainActivity";
+    FirebaseFirestore db = FirebaseFirestore.getInstance();
 
     LocationManager locationManager;
     LocationListener locationListener;
@@ -116,6 +136,24 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+            db.collection("zone1").get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                if (task.isSuccessful()) {
+                    for (QueryDocumentSnapshot document : task.getResult()) {
+                        Log.d(TAG, document.getId() + " => " + document.getData());
+                    }
+                } else {
+                    Log.w(TAG, "Error getting documents.", task.getException());
+                }
+            }
+        });
+    }
+
     private void getLocation() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
@@ -135,12 +173,28 @@ public class MainActivity extends AppCompatActivity {
                 Location location = task.getResult();
                 if (location != null) {
                     try {
+                        double latitude = location.getLatitude();
+                        double longitude = location.getLongitude();
+
                         // Initialize geocoder
                         Geocoder geocoder = new Geocoder(MainActivity.this, Locale.getDefault());
                         // Initialize address List
                         List<Address> addresses = geocoder.getFromLocation(
-                                location.getLatitude(), location.getLongitude(), 1
+                                latitude, longitude, 1
                         );
+
+                        // TODO: move this to onCreate()
+                        GeoApiContext geoApiContext = new GeoApiContext.Builder()
+                                .apiKey("AIza...")
+                                .build(); // Should be instantiated on startup
+
+                        LatLng latLng = new LatLng(latitude,longitude);
+                        GeocodingResult[] results =  GeocodingApi.reverseGeocode(geoApiContext,
+                                latLng).await();
+
+                        PlaceType natural_feature = PlaceType.PARK;
+
+
                         Log.d(TAG, "onComplete: latitude " + location.getLatitude() + " \tlongitude " + location.getLongitude());
                         // Set latitude on Text View
                         textView1.setText("" + addresses.get(0).getLatitude());
@@ -150,6 +204,11 @@ public class MainActivity extends AppCompatActivity {
                         textView5.setText(addresses.get(0).getAddressLine(0));
 
                     } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
+                        // TODO: Make sure this is all that needs to be done?
+                        e.printStackTrace();
+                    } catch (ApiException e) {
                         e.printStackTrace();
                     }
                 }
