@@ -63,6 +63,8 @@ public class MainActivity extends AppCompatActivity {
 
     LocationManager locationManager;
     LocationListener locationListener;
+    double globalLatitude;
+    double globalLongitude;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,6 +78,9 @@ public class MainActivity extends AppCompatActivity {
         textView4 = findViewById(R.id.textView4);
         textView5 = findViewById(R.id.textView5);
 
+        globalLatitude = 400;
+        globalLongitude = 400;
+        
         // Initialize fusedLocation
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
         btLocation.setOnClickListener(new View.OnClickListener() {
@@ -85,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
                 Calendar calendar = Calendar.getInstance();
                 int minute = calendar.get(Calendar.MINUTE);
                 int second = calendar.get(Calendar.SECOND);
-                Log.d(TAG, "onClick: " + minute + "\t" + second);
+                Log.d(TAG, "onClick: Time" + minute + "\t" + second);
 
                 if (ActivityCompat.checkSelfPermission(MainActivity.this
                         , Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -102,7 +107,21 @@ public class MainActivity extends AppCompatActivity {
             public void onLocationChanged(Location location) {
                 double latitude = location.getLatitude();
                 double longitude = location.getLongitude();
-                Log.d(TAG, "onLocationChanged: latitude " + latitude + " \tlongitude " + longitude);
+                String collection = getCollectionName("" + latitude,""+ longitude);
+
+                // retrieve mountains
+                db.collection(collection).get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful()) {
+                            for (QueryDocumentSnapshot document : task.getResult()) {
+                                Log.d(TAG, document.getId() + " => " + document.getData());
+                            }
+                        } else {
+                            Log.w(TAG, "Error getting documents.", task.getException());
+                        }
+                    }
+                });
             }
 
             @Override
@@ -122,6 +141,7 @@ public class MainActivity extends AppCompatActivity {
         };
 
         // Vivek's code
+
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
                 PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
@@ -131,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
         if (locationManager.isProviderEnabled(locationManager.NETWORK_PROVIDER)) {
             locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0,  locationListener);
         }
-        else if (locationManager.isProviderEnabled(locationManager.GPS_PROVIDER)){
+        else         if (locationManager.isProviderEnabled(locationManager.GPS_PROVIDER)){
             locationManager.requestLocationUpdates(locationManager.GPS_PROVIDER, 0, 0, locationListener);
         }
     }
@@ -139,23 +159,15 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
-            db.collection("zone1").get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-            @Override
-            public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                if (task.isSuccessful()) {
-                    for (QueryDocumentSnapshot document : task.getResult()) {
-                        Log.d(TAG, document.getId() + " => " + document.getData());
-                    }
-                } else {
-                    Log.w(TAG, "Error getting documents.", task.getException());
-                }
-            }
-        });
     }
 
+    private String getCollectionName(String latitude, String longitude) {
+        String collection = "zone1";
+        return collection;
+    }
     private void getLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
             //    ActivityCompat#requestPermissions
             // here to request the missing permissions, and then overriding
@@ -171,46 +183,22 @@ public class MainActivity extends AppCompatActivity {
             public void onComplete(@NonNull Task<Location> task) {
                 // Initialize location
                 Location location = task.getResult();
+
                 if (location != null) {
-                    try {
-                        double latitude = location.getLatitude();
-                        double longitude = location.getLongitude();
+                    double latitude = location.getLatitude();
+                    double longitude = location.getLongitude();
 
-                        // Initialize geocoder
-                        Geocoder geocoder = new Geocoder(MainActivity.this, Locale.getDefault());
-                        // Initialize address List
-                        List<Address> addresses = geocoder.getFromLocation(
-                                latitude, longitude, 1
-                        );
+                    Log.d(TAG, "onComplete: latitude " + latitude + " \tlongitude " + longitude);
 
-                        // TODO: move this to onCreate()
-                        GeoApiContext geoApiContext = new GeoApiContext.Builder()
-                                .apiKey("AIza...")
-                                .build(); // Should be instantiated on startup
+                    String text1 = "Latitude: " + latitude;
+                    String text2 = "Longitude: " + longitude;
 
-                        LatLng latLng = new LatLng(latitude,longitude);
-                        GeocodingResult[] results =  GeocodingApi.reverseGeocode(geoApiContext,
-                                latLng).await();
-
-                        PlaceType natural_feature = PlaceType.PARK;
-
-
-                        Log.d(TAG, "onComplete: latitude " + location.getLatitude() + " \tlongitude " + location.getLongitude());
-                        // Set latitude on Text View
-                        textView1.setText("" + addresses.get(0).getLatitude());
-                        textView2.setText("" + addresses.get(0).getLongitude());
-                        textView3.setText(addresses.get(0).getCountryName());
-                        textView4.setText(addresses.get(0).getLocality());
-                        textView5.setText(addresses.get(0).getAddressLine(0));
-
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (InterruptedException e) {
-                        // TODO: Make sure this is all that needs to be done?
-                        e.printStackTrace();
-                    } catch (ApiException e) {
-                        e.printStackTrace();
-                    }
+                    // Set latitude on Text View
+                    textView1.setText(text1);
+                    textView2.setText(text2);
+                    textView3.setText("hello");
+                    textView4.setText("some more text");
+                    textView5.setText("some text");
                 }
             }
         });
