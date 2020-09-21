@@ -36,6 +36,7 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.GeoPoint;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.maps.FindPlaceFromTextRequest;
@@ -59,6 +60,7 @@ import java.io.IOException;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
     // Init
@@ -71,6 +73,8 @@ public class MainActivity extends AppCompatActivity {
     LocationListener locationListener;
     double globalLatitude = -600;
     double globalLongitude = -600;
+    double globalMinDistance = Double.POSITIVE_INFINITY;
+    String closestMountain = "";
 
     public static final int PERMISSIONS_REQUEST_ENABLE_GPS = 9002;
     public static final int ERROR_DIALOG_REQUEST = 9001;
@@ -124,21 +128,48 @@ public class MainActivity extends AppCompatActivity {
                 double longitude = location.getLongitude();
                 String collection = getCollectionName("" + latitude,""+ longitude);
 
+
                 // retrieve mountains
                 db.collection(collection).get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
                     @Override
                     public void onComplete(@NonNull Task<QuerySnapshot> task) {
                         if (task.isSuccessful()) {
+                            double minDistance = Double.POSITIVE_INFINITY;
+                            String mountainName = "";
+
                             for (QueryDocumentSnapshot document : task.getResult()) {
+                                Map<String,Object> doc = document.getData();
                                 Log.d(TAG, document.getId() + " => " + document.getData());
+
+                                double mountainLatitude = -600;
+                                double mountainLongitude = -600;
+                                double haversineDistance = Double.POSITIVE_INFINITY;
+
+                                GeoPoint latLong = document.getGeoPoint("coordinate");
+
+                                if (latLong != null) {
+                                    mountainLatitude = latLong.getLatitude();
+                                    mountainLongitude = latLong.getLongitude();
+                                    haversineDistance = getDistanceApprox(latitude,longitude,mountainLatitude,mountainLongitude);
+                                    if (haversineDistance < minDistance) {
+                                        minDistance = haversineDistance;
+                                        mountainName = document.getId();
+                                    }
+                                }
+                                Log.d(TAG, "onComplete: distance " + haversineDistance);
                             }
+
+                            globalLatitude = latitude;
+                            globalLongitude = longitude;
+                            globalMinDistance = minDistance;
+                            closestMountain = mountainName;
                         } else {
                             Log.w(TAG, "Error getting documents.", task.getException());
                         }
+
                     }
                 });
-                globalLatitude = latitude;
-                globalLongitude = longitude;
+
 
                 String text1 = "Latitude: " + latitude;
                 String text2 = "Longitude: " + longitude;
@@ -192,22 +223,30 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
     }
 
-    private String getCollectionName(String latitude, String longitude) {
+    private String getCollectionName(String latitudeStr, String longitudeStr) {
+        double latitude = Double.parseDouble(latitudeStr);
+        double longitude = Double.parseDouble(longitudeStr);
+
+        // TODO some calculations to get name
+
         String collection = "zone1";
         return collection;
     }
     private void getLocation() {
-        String text1 = "Latitude: " + globalLatitude;
-        String text2 = "Longitude: " + globalLongitude;
+        String text1 = "My Latitude: " + globalLatitude;
+        String text2 = "My Longitude: " + globalLongitude;
+        String text3 = "Closest Mountain: " + closestMountain;
+        //String text4 = "" + globalMinDistance + " km away!";
+        String text4 = String.format("%1.2f km away", globalMinDistance);
 
         Log.d(TAG, "onComplete: " + text1 + " " + text2);
 
         // Set latitude on Text View
         textView1.setText(text1);
         textView2.setText(text2);
-        textView3.setText("hello");
-        textView4.setText("some more text");
-        textView5.setText("some text");
+        textView3.setText(text3);
+        textView4.setText(text4);
+        textView5.setText("");
     }
     private void buildAlertMessageNoGps() {
         final AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -278,5 +317,24 @@ public class MainActivity extends AppCompatActivity {
                     new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
                     PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
         }
+    }
+
+    private double getDistanceApprox(double latitude1, double longitude1, double latitude2, double longitude2){
+        /* using haversine formula, a spherical model of the earth */
+        double theta1, theta2, lambda1, lambda2;
+        theta1 = degreeToRad(latitude1);
+        theta2 = degreeToRad(latitude2);
+        lambda1 = degreeToRad(longitude1);
+        lambda2 = degreeToRad(longitude2);
+        double r = (6356.752 + 6378.137)/2;
+        double a, b;
+        a = Math.pow( Math.sin( ( theta2 - theta1 ) / 2),2);
+        b = Math.cos( theta1 ) * Math.cos( theta2 ) * Math.pow( Math.sin( ( lambda2 - lambda1 ) /2),2);
+        double distance = 2 * r * Math.asin( Math.sqrt( a + b ) );
+        return distance;
+    }
+
+    private double degreeToRad(double degree){
+        return degree*Math.PI / 180.0;
     }
 }
