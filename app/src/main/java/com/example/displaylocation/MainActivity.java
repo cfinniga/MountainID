@@ -7,10 +7,15 @@ https://www.youtube.com/watch?v=Ak1O9Gip-pg
 package com.example.displaylocation;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import android.Manifest;
+import android.app.Dialog;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
@@ -23,8 +28,10 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
-import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -57,19 +64,29 @@ public class MainActivity extends AppCompatActivity {
     // Init
     Button btLocation;
     TextView textView1, textView2, textView3, textView4, textView5;
-    FusedLocationProviderClient fusedLocationProviderClient;
     private static final String TAG = "MainActivity";
     FirebaseFirestore db = FirebaseFirestore.getInstance();
 
     LocationManager locationManager;
     LocationListener locationListener;
-    double globalLatitude;
-    double globalLongitude;
+    double globalLatitude = -600;
+    double globalLongitude = -600;
+
+    public static final int PERMISSIONS_REQUEST_ENABLE_GPS = 9002;
+    public static final int ERROR_DIALOG_REQUEST = 9001;
+    public static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 9003;
+    private boolean mLocationPermissionGranted = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        if(checkMapServices()){
+            if(!mLocationPermissionGranted){
+                getLocationPermission();
+            }
+        }
 
         btLocation = findViewById(R.id.bt_location);
         textView1 = findViewById(R.id.textView);
@@ -77,12 +94,8 @@ public class MainActivity extends AppCompatActivity {
         textView3 = findViewById(R.id.textView3);
         textView4 = findViewById(R.id.textView4);
         textView5 = findViewById(R.id.textView5);
-
-        globalLatitude = 400;
-        globalLongitude = 400;
         
         // Initialize fusedLocation
-        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
         btLocation.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -92,12 +105,14 @@ public class MainActivity extends AppCompatActivity {
                 int second = calendar.get(Calendar.SECOND);
                 Log.d(TAG, "onClick: Time" + minute + "\t" + second);
 
+                ActivityCompat.requestPermissions(MainActivity.this
+                        , new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 44);
                 if (ActivityCompat.checkSelfPermission(MainActivity.this
                         , Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                     getLocation();
-                } else {
-                    ActivityCompat.requestPermissions(MainActivity.this
-                            , new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 44);
+                }
+                else{
+                    Log.d(TAG, "onClick: no permission");
                 }
             }
         });
@@ -122,6 +137,13 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                 });
+                globalLatitude = latitude;
+                globalLongitude = longitude;
+
+                String text1 = "Latitude: " + latitude;
+                String text2 = "Longitude: " + longitude;
+
+                Log.d(TAG, "onComplete: " + text1 + " " + text2);
             }
 
             @Override
@@ -136,12 +158,20 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onProviderDisabled(String provider) {
-
+                Toast.makeText(MainActivity.this, "Disabled", Toast.LENGTH_SHORT).show();
+                mLocationPermissionGranted = false;
+                if(checkMapServices()){
+                    if(mLocationPermissionGranted){
+                        Log.d(TAG, "onProviderDisabled: permission grantedddd");
+                    }
+                    else{
+                        getLocationPermission();
+                    }
+                }
             }
         };
 
         // Vivek's code
-
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
                 PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
@@ -151,9 +181,10 @@ public class MainActivity extends AppCompatActivity {
         if (locationManager.isProviderEnabled(locationManager.NETWORK_PROVIDER)) {
             locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0,  locationListener);
         }
-        else         if (locationManager.isProviderEnabled(locationManager.GPS_PROVIDER)){
+        else if (locationManager.isProviderEnabled(locationManager.GPS_PROVIDER)){
             locationManager.requestLocationUpdates(locationManager.GPS_PROVIDER, 0, 0, locationListener);
         }
+
     }
 
     @Override
@@ -166,41 +197,86 @@ public class MainActivity extends AppCompatActivity {
         return collection;
     }
     private void getLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return;
+        String text1 = "Latitude: " + globalLatitude;
+        String text2 = "Longitude: " + globalLongitude;
+
+        Log.d(TAG, "onComplete: " + text1 + " " + text2);
+
+        // Set latitude on Text View
+        textView1.setText(text1);
+        textView2.setText(text2);
+        textView3.setText("hello");
+        textView4.setText("some more text");
+        textView5.setText("some text");
+    }
+    private void buildAlertMessageNoGps() {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("This application requires GPS to work properly, do you want to enable it?")
+                .setCancelable(false)
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
+                        Intent enableGpsIntent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                        startActivityForResult(enableGpsIntent, PERMISSIONS_REQUEST_ENABLE_GPS);
+                    }
+                });
+        final AlertDialog alert = builder.create();
+        alert.show();
+    }
+
+    public boolean isMapsEnabled(){
+        final LocationManager manager = (LocationManager) getSystemService( MainActivity.LOCATION_SERVICE );
+
+        if ( !manager.isProviderEnabled( LocationManager.GPS_PROVIDER ) ) {
+            buildAlertMessageNoGps();
+            return false;
         }
+        return true;
+    }
 
-        fusedLocationProviderClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<Location>() {
-            @Override
-            public void onComplete(@NonNull Task<Location> task) {
-                // Initialize location
-                Location location = task.getResult();
-
-                if (location != null) {
-                    double latitude = location.getLatitude();
-                    double longitude = location.getLongitude();
-
-                    Log.d(TAG, "onComplete: latitude " + latitude + " \tlongitude " + longitude);
-
-                    String text1 = "Latitude: " + latitude;
-                    String text2 = "Longitude: " + longitude;
-
-                    // Set latitude on Text View
-                    textView1.setText(text1);
-                    textView2.setText(text2);
-                    textView3.setText("hello");
-                    textView4.setText("some more text");
-                    textView5.setText("some text");
-                }
+    private boolean checkMapServices(){
+        if(isServicesOK()){
+            if(isMapsEnabled()){
+                return true;
             }
-        });
+        }
+        return false;
+    }
+
+    public boolean isServicesOK() {
+        Log.d(TAG, "isServicesOK: checking google services version");
+
+        int available = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(MainActivity.this);
+
+        if (available == ConnectionResult.SUCCESS) {
+            //everything is fine and the user can make map requests
+            Log.d(TAG, "isServicesOK: Google Play Services is working");
+            return true;
+        } else if (GoogleApiAvailability.getInstance().isUserResolvableError(available)) {
+            //an error occured but we can resolve it
+            Log.d(TAG, "isServicesOK: an error occured but we can fix it");
+            Dialog dialog = GoogleApiAvailability.getInstance().getErrorDialog(MainActivity.this, available, ERROR_DIALOG_REQUEST);
+            dialog.show();
+        } else {
+            Toast.makeText(this, "You suck", Toast.LENGTH_SHORT).show();
+        }
+        return false;
+    }
+
+    // Vivek
+    private void getLocationPermission() {
+        /*
+         * Request location permission, so that we can get the location of the
+         * device. The result of the permission request is handled by a callback,
+         * onRequestPermissionsResult.
+         */
+        if (ContextCompat.checkSelfPermission(this.getApplicationContext(),
+                android.Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            mLocationPermissionGranted = true;
+        } else {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
+                    PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
+        }
     }
 }
