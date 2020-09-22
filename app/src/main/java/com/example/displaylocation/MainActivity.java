@@ -237,7 +237,7 @@ public class MainActivity extends AppCompatActivity {
         String text2 = "My Longitude: " + globalLongitude;
         String text3 = "Closest Mountain: " + closestMountain;
         //String text4 = "" + globalMinDistance + " km away!";
-        String text4 = String.format("%1.2f km away", globalMinDistance);
+        String text4 = String.format("%1.3f km away", globalMinDistance);
 
         Log.d(TAG, "onComplete: " + text1 + " " + text2);
 
