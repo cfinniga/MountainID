@@ -14,16 +14,20 @@ import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.app.Dialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.text.Html;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -32,41 +36,23 @@ import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
-import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.GeoPoint;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
-import com.google.maps.FindPlaceFromTextRequest;
-import com.google.maps.GeoApiContext;
-import com.google.maps.GeocodingApi;
-import com.google.maps.GeocodingApiRequest;
-import com.google.maps.PlacesApi;
-import com.google.maps.errors.ApiException;
-import com.google.maps.model.FindPlaceFromText;
-import com.google.maps.model.GeocodingResult;
-import com.google.maps.model.LatLng;
-import com.google.maps.model.PlaceType;
 
-import com.google.maps.FindPlaceFromTextRequest.InputType;
-import com.google.maps.FindPlaceFromTextRequest.LocationBiasCircular;
-import com.google.maps.FindPlaceFromTextRequest.LocationBiasIP;
-import com.google.maps.FindPlaceFromTextRequest.LocationBiasPoint;
-import com.google.maps.FindPlaceFromTextRequest.LocationBiasRectangular;
-
-import java.io.IOException;
 import java.util.Calendar;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
-public class MainActivity extends AppCompatActivity {
-    // Init
+
+
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
+    private static final String TAG = "MainActivity";
+
     Button btLocation;
     TextView textView1, textView2, textView3, textView4, textView5;
-    private static final String TAG = "MainActivity";
     FirebaseFirestore db = FirebaseFirestore.getInstance();
 
     LocationManager locationManager;
@@ -81,10 +67,22 @@ public class MainActivity extends AppCompatActivity {
     public static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 9003;
     private boolean mLocationPermissionGranted = false;
 
+    // Sensor Variables
+    SensorManager sensorManager;
+    Sensor accelerometer, magneticField;
+
+    // Orientation things
+    private final float[] accelerometerReading = new float[3];
+    private final float[] magnetometerReading = new float[3];
+    private final float[] rotationMatrix = new float[9];
+    private final float[] orientationAngles = new float[3];
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
 
         if(checkMapServices()){
             if(!mLocationPermissionGranted){
@@ -98,7 +96,9 @@ public class MainActivity extends AppCompatActivity {
         textView3 = findViewById(R.id.textView3);
         textView4 = findViewById(R.id.textView4);
         textView5 = findViewById(R.id.textView5);
-        
+
+
+
         // Initialize fusedLocation
         btLocation.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -126,7 +126,7 @@ public class MainActivity extends AppCompatActivity {
             public void onLocationChanged(Location location) {
                 double latitude = location.getLatitude();
                 double longitude = location.getLongitude();
-                String collection = getCollectionName("" + latitude,""+ longitude);
+                String collection = getCollectionName("" + latitude, "" + longitude);
 
 
                 // retrieve mountains
@@ -138,7 +138,7 @@ public class MainActivity extends AppCompatActivity {
                             String mountainName = "";
 
                             for (QueryDocumentSnapshot document : task.getResult()) {
-                                Map<String,Object> doc = document.getData();
+                                Map<String, Object> doc = document.getData();
                                 Log.d(TAG, document.getId() + " => " + document.getData());
 
                                 double mountainLatitude = -600;
@@ -150,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
                                 if (latLong != null) {
                                     mountainLatitude = latLong.getLatitude();
                                     mountainLongitude = latLong.getLongitude();
-                                    haversineDistance = getDistanceApprox(latitude,longitude,mountainLatitude,mountainLongitude);
+                                    haversineDistance = getDistanceApprox(latitude, longitude, mountainLatitude, mountainLongitude);
                                     if (haversineDistance < minDistance) {
                                         minDistance = haversineDistance;
                                         mountainName = document.getId();
@@ -191,11 +191,10 @@ public class MainActivity extends AppCompatActivity {
             public void onProviderDisabled(String provider) {
                 Toast.makeText(MainActivity.this, "Disabled", Toast.LENGTH_SHORT).show();
                 mLocationPermissionGranted = false;
-                if(checkMapServices()){
-                    if(mLocationPermissionGranted){
+                if (checkMapServices()) {
+                    if (mLocationPermissionGranted) {
                         Log.d(TAG, "onProviderDisabled: permission grantedddd");
-                    }
-                    else{
+                    } else {
                         getLocationPermission();
                     }
                 }
@@ -215,12 +214,74 @@ public class MainActivity extends AppCompatActivity {
         else if (locationManager.isProviderEnabled(locationManager.GPS_PROVIDER)){
             locationManager.requestLocationUpdates(locationManager.GPS_PROVIDER, 0, 0, locationListener);
         }
-
     }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+    }
+
 
     @Override
     protected void onResume() {
         super.onResume();
+
+
+        // get an instance of the default rotation vector sensor
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        if (accelerometer != null) {
+            sensorManager.registerListener(this, accelerometer,
+                    SensorManager.SENSOR_DELAY_NORMAL, SensorManager.SENSOR_DELAY_UI);
+        }
+        magneticField = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        if (magneticField != null) {
+            sensorManager.registerListener(this, magneticField,
+                    SensorManager.SENSOR_DELAY_NORMAL, SensorManager.SENSOR_DELAY_UI);
+        }
+
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        sensorManager.unregisterListener(this);
+    }
+
+    // Get readings from accelerometer and magnetometer. To simplify calculations,
+    // consider storing these readings as unit vectors.
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            System.arraycopy(event.values, 0, accelerometerReading,
+                    0, accelerometerReading.length);
+        } else if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+            System.arraycopy(event.values, 0, magnetometerReading,
+                    0, magnetometerReading.length);
+        }
+        updateOrientationAngles();
+    }
+
+    // Compute the three orientation angles based on the most recent readings from
+    // the device's accelerometer and magnetometer.
+    public void updateOrientationAngles() {
+        // Update rotation matrix, which is needed to update orientation angles.
+        SensorManager.getRotationMatrix(rotationMatrix, null,
+                accelerometerReading, magnetometerReading);
+
+        // "rotationMatrix" now has up-to-date information.
+
+        SensorManager.getOrientation(rotationMatrix, orientationAngles);
+        Log.d(TAG, "updateOrientationAngles: Azimuth\t" + orientationAngles[0] + "\tPitch\t" + orientationAngles[1] + "\tRoll\t" + orientationAngles[2]);
+        // "orientationAngles" now has up-to-date information.
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
     }
 
     private String getCollectionName(String latitudeStr, String longitudeStr) {
@@ -303,11 +364,6 @@ public class MainActivity extends AppCompatActivity {
 
     // Vivek
     private void getLocationPermission() {
-        /*
-         * Request location permission, so that we can get the location of the
-         * device. The result of the permission request is handled by a callback,
-         * onRequestPermissionsResult.
-         */
         if (ContextCompat.checkSelfPermission(this.getApplicationContext(),
                 android.Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED) {
@@ -320,7 +376,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private double getDistanceApprox(double latitude1, double longitude1, double latitude2, double longitude2){
-        /* using haversine formula, a spherical model of the earth */
         double theta1, theta2, lambda1, lambda2;
         theta1 = degreeToRad(latitude1);
         theta2 = degreeToRad(latitude2);
