@@ -44,8 +44,8 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.Calendar;
+import java.util.Locale;
 import java.util.Map;
-
 
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
@@ -122,7 +122,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                         , new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 44);
                 if (ActivityCompat.checkSelfPermission(MainActivity.this
                         , Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                    if (retrieveMountains()) {
+                    if (myLatitude == NO_LATITUDE || myLongitude == NO_LONGITUDE) {
+                        // Set latitude on Text View
+                        String text1 = "No location found";
+                        textView1.setText(text1);
+                        textView2.setText("");
+                        textView3.setText("");
+                        textView4.setText("");
+                        String text5 = String.format(Locale.US, "Azimuth %1.3f", azimuth);
+                        textView5.setText(text5);
+                    }
+                    else if (retrieveMountains()) {
                         setLocation();
                     }
                     Log.d(TAG, "onClick: azimuth " + azimuth);
@@ -138,7 +148,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             public void onLocationChanged(Location location) {
                 myLatitude = location.getLatitude();
                 myLongitude = location.getLongitude();
-
 
                 String text1 = "Latitude: " + myLatitude;
                 String text2 = "Longitude: " + myLongitude;
@@ -252,12 +261,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         // Update rotation matrix, which is needed to update orientation angles.
         SensorManager.getRotationMatrix(rotationMatrix, null,
                 accelerometerReading, magnetometerReading);
-
         // "rotationMatrix" now has up-to-date information.
 
         SensorManager.getOrientation(rotationMatrix, orientationAngles);
         azimuth =  orientationAngles[0];
-
         //Log.d(TAG, "updateOrientationAngles: Azimuth\t" + orientationAngles[0] + "\tPitch\t" + orientationAngles[1] + "\tRoll\t" + orientationAngles[2]);
         // "orientationAngles" now has up-to-date information.
     }
@@ -280,9 +287,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         String text1 = "My Latitude: " + myLatitude;
         String text2 = "My Longitude: " + myLongitude;
         String text3 = "Closest Mountain: " + closestMountain;
-        //String text4 = "" + globalMinDistance + " km away!";
-        String text4 = String.format("%1.3f km away", globalMinDistance);
-
+        String text4 = String.format(Locale.US, "%1.3f km away", globalMinDistance);
+        String text5 = String.format(Locale.US, "Azimuth %1.3f", azimuth);
         Log.d(TAG, "onComplete: " + text1 + " " + text2);
 
         // Set latitude on Text View
@@ -290,6 +296,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         textView2.setText(text2);
         textView3.setText(text3);
         textView4.setText(text4);
+        textView5.setText(text5);
     }
     private void buildAlertMessageNoGps() {
         final AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -357,7 +364,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
     }
 
-    private double getDistanceApprox(double latitude1, double longitude1, double latitude2, double longitude2){
+    private static double getDistanceApprox(double latitude1, double longitude1, double latitude2, double longitude2){
         double theta1, theta2, lambda1, lambda2;
         theta1 = degreeToRad(latitude1);
         theta2 = degreeToRad(latitude2);
@@ -371,11 +378,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         return distance;
     }
 
-    private double degreeToRad(double degree){
+    private static double degreeToRad(double degree){
         return degree*Math.PI / 180.0;
     }
 
-    private double isInFieldOfView(double mountainLatitude, double mountainLongitude, double azimuth){
+    private static double isInFieldOfView(double myLatitude, double myLongitude, double mountainLatitude, double mountainLongitude, double azimuth){
         double northLatitude = 90;
         double northLongitude = myLongitude;
 
@@ -390,47 +397,16 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     private boolean retrieveMountains(){
-
         // retrieve mountains
         String collection = getCollectionName("" + myLatitude, "" + myLongitude);
-
-
 
         db.collection(collection).get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
             @Override
             public void onComplete(@NonNull Task<QuerySnapshot> task) {
                 if (task.isSuccessful()) {
-                    double minDistance = Double.POSITIVE_INFINITY;
-                    String mountainName = "";
-
-                    for (QueryDocumentSnapshot document : task.getResult()) {
-                        Map<String, Object> doc = document.getData();
-                        Log.d(TAG, document.getId() + " => " + document.getData());
-
-                        double mountainLatitude = -600;
-                        double mountainLongitude = -600;
-                        double haversineDistance = Double.POSITIVE_INFINITY;
-
-                        GeoPoint latLong = document.getGeoPoint("coordinate");
-
-                        if (latLong != null) {
-                            mountainLatitude = latLong.getLatitude();
-                            mountainLongitude = latLong.getLongitude();
-                            haversineDistance = getDistanceApprox(myLatitude, myLongitude, mountainLatitude, mountainLongitude);
-                            if (haversineDistance < minDistance) {
-                                double angle = isInFieldOfView(mountainLatitude,mountainLongitude,azimuth);
-                                Log.d(TAG, "onComplete: angle " + angle);
-                                if (angle <= 40*Math.PI/180) {
-                                    minDistance = haversineDistance;
-                                    mountainName = document.getId();
-                                }
-                            }
-                        }
-                        Log.d(TAG, "onComplete: distance " + haversineDistance);
-                    }
-
-                    globalMinDistance = minDistance;
-                    closestMountain = mountainName;
+                    MountainInfo info = getClosestMountain(task, myLatitude, myLongitude, azimuth);
+                    closestMountain = info.name;
+                    globalMinDistance = info.distance;
                 } else {
                     Log.w(TAG, "Error getting documents.", task.getException());
                 }
@@ -443,4 +419,42 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
         return true;
     }
+
+    public static MountainInfo getClosestMountain(Task<QuerySnapshot> task, double myLatitude, double myLongitude, double azimuth) {
+        double minDistance = Double.POSITIVE_INFINITY;
+        String mountainName = "";
+
+        for (QueryDocumentSnapshot document : task.getResult()) {
+            Map<String, Object> doc = document.getData();
+            Log.d(TAG, document.getId() + " => " + document.getData());
+
+            double mountainLatitude = -600;
+            double mountainLongitude = -600;
+            double haversineDistance = Double.POSITIVE_INFINITY;
+
+            GeoPoint latLong = document.getGeoPoint("coordinate");
+
+            if (latLong != null) {
+                mountainLatitude = latLong.getLatitude();
+                mountainLongitude = latLong.getLongitude();
+                haversineDistance = getDistanceApprox(myLatitude, myLongitude, mountainLatitude, mountainLongitude);
+                if (haversineDistance < minDistance) {
+                    double angle = isInFieldOfView(myLatitude, myLongitude, mountainLatitude,mountainLongitude,azimuth);
+                    Log.d(TAG, "onComplete: angle " + angle);
+                    if (angle <= 40*Math.PI/180) {
+                        minDistance = haversineDistance;
+                        mountainName = document.getId();
+                    }
+                }
+            }
+            Log.d(TAG, "onComplete: distance " + haversineDistance);
+        }
+
+        MountainInfo info = new MountainInfo(mountainName,minDistance);
+        info.distance = minDistance;
+        info.name = mountainName;
+        return info;
+    }
+
+
 }
