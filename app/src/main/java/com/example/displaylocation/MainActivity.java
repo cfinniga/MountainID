@@ -122,6 +122,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                         , new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 44);
                 if (ActivityCompat.checkSelfPermission(MainActivity.this
                         , Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+
+                    boolean foundMountain = retrieveMountains();
                     if (myLatitude == NO_LATITUDE || myLongitude == NO_LONGITUDE) {
                         // Set latitude on Text View
                         String text1 = "No location found";
@@ -132,7 +134,21 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                         String text5 = String.format(Locale.US, "Azimuth %1.3f", azimuth);
                         textView5.setText(text5);
                     }
-                    else if (retrieveMountains()) {
+                    else {
+                        String text1 = "My Latitude: " + myLatitude;
+                        String text2 = "My Longitude: " + myLongitude;
+                        String text3 = "";
+                        String text4 = "";
+                        String text5 = String.format(Locale.US, "Azimuth %1.3f", azimuth);
+
+                        // Set latitude on Text View
+                        textView1.setText(text1);
+                        textView2.setText(text2);
+                        textView3.setText(text3);
+                        textView4.setText(text4);
+                        textView5.setText(text5);
+                    }
+                    if (foundMountain) {
                         setLocation();
                     }
                     Log.d(TAG, "onClick: azimuth " + azimuth);
@@ -382,7 +398,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         return degree*Math.PI / 180.0;
     }
 
-    private static double isInFieldOfView(double myLatitude, double myLongitude, double mountainLatitude, double mountainLongitude, double azimuth){
+    public static double isInFieldOfView(double myLatitude, double myLongitude, double mountainLatitude, double mountainLongitude, double azimuth){
         double northLatitude = 90;
         double northLongitude = myLongitude;
 
@@ -393,10 +409,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         double mountainAngle = Math.acos( (Math.cos(a) - Math.cos(b)*Math.cos(c) )/(Math.sin(b)*Math.sin(c)));
         double angle = Math.abs(mountainAngle - azimuth);
         Log.d(TAG, "isInFieldOfView: " + angle + " degrees");
-        return Math.abs(mountainAngle - azimuth - 90*Math.PI/180);
+        return Math.abs(mountainAngle - azimuth - Math.PI/180);
     }
 
-    private boolean retrieveMountains(){
+    public boolean retrieveMountains(){
         // retrieve mountains
         String collection = getCollectionName("" + myLatitude, "" + myLongitude);
 
@@ -424,6 +440,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         double minDistance = Double.POSITIVE_INFINITY;
         String mountainName = "";
 
+        azimuth = 1.5;
         for (QueryDocumentSnapshot document : task.getResult()) {
             Map<String, Object> doc = document.getData();
             Log.d(TAG, document.getId() + " => " + document.getData());
@@ -438,10 +455,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 mountainLatitude = latLong.getLatitude();
                 mountainLongitude = latLong.getLongitude();
                 haversineDistance = getDistanceApprox(myLatitude, myLongitude, mountainLatitude, mountainLongitude);
-                if (haversineDistance < minDistance) {
-                    double angle = isInFieldOfView(myLatitude, myLongitude, mountainLatitude,mountainLongitude,azimuth);
-                    Log.d(TAG, "onComplete: angle " + angle);
-                    if (angle <= 40*Math.PI/180) {
+
+                double angle = isInFieldOfView(myLatitude, myLongitude, mountainLatitude,mountainLongitude,azimuth);
+                Log.d(TAG, "onComplete: angle " + angle);
+
+                if (angle <= 20*Math.PI/180) {
+                    if (haversineDistance < minDistance) {
                         minDistance = haversineDistance;
                         mountainName = document.getId();
                     }
