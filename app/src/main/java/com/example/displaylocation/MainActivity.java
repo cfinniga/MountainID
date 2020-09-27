@@ -22,8 +22,6 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.location.Address;
-import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -380,13 +378,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
     }
 
-    private static double getDistanceApprox(double latitude1, double longitude1, double latitude2, double longitude2){
+    public static double haversine(double latitude1, double longitude1, double latitude2, double longitude2){
         double theta1, theta2, lambda1, lambda2;
         theta1 = degreeToRad(latitude1);
         theta2 = degreeToRad(latitude2);
         lambda1 = degreeToRad(longitude1);
         lambda2 = degreeToRad(longitude2);
-        double r = (6356.752 + 6378.137)/2;
+        //double r = (6356.752)/2;
+        //double r = (6356.752 + 6378.137)/2;
+        double r = (6378.137)/2;
         double a, b;
         a = Math.pow( Math.sin( ( theta2 - theta1 ) / 2),2);
         b = Math.cos( theta1 ) * Math.cos( theta2 ) * Math.pow( Math.sin( ( lambda2 - lambda1 ) /2),2);
@@ -398,18 +398,29 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         return degree*Math.PI / 180.0;
     }
 
-    public static double isInFieldOfView(double myLatitude, double myLongitude, double mountainLatitude, double mountainLongitude, double azimuth){
+    public static double getMountainAngle(double myLatitude, double myLongitude, double mountainLatitude, double mountainLongitude){
         double northLatitude = 90;
         double northLongitude = myLongitude;
 
-        double c = getDistanceApprox(myLatitude, myLongitude, mountainLatitude, mountainLongitude) / EARTH_RADIUS; // Distance to mountain
-        double b = getDistanceApprox(myLatitude, myLongitude, northLatitude, northLongitude) / EARTH_RADIUS;
-        double a = getDistanceApprox(northLatitude, northLongitude, mountainLatitude, mountainLongitude) / EARTH_RADIUS;
+        // Distance to mountain
+        double c = haversine(myLatitude, myLongitude, mountainLatitude, mountainLongitude) / EARTH_RADIUS;
 
+        // Distance to north pole
+        double b = haversine(myLatitude, myLongitude, northLatitude, northLongitude) / EARTH_RADIUS;
+
+        // Distance from north pole to mountain
+        double a = haversine(northLatitude, northLongitude, mountainLatitude, mountainLongitude) / EARTH_RADIUS;
+
+        Log.d(TAG, "getMountainAngle: dist to mountain " + c + " , dist to np "  + b + ", dist to me " + a);
         double mountainAngle = Math.acos( (Math.cos(a) - Math.cos(b)*Math.cos(c) )/(Math.sin(b)*Math.sin(c)));
-        double angle = Math.abs(mountainAngle - azimuth);
-        Log.d(TAG, "isInFieldOfView: " + angle + " degrees");
-        return Math.abs(mountainAngle - azimuth - Math.PI/180);
+
+        Log.d(TAG, "getMountainAngle: mountain angle " + mountainAngle + " degrees");
+        return mountainAngle;
+    }
+    public static double getAngleToMe(double mountainAngle, double azimuth){
+        double angle = mountainAngle - azimuth;
+        Log.d(TAG, "getAngleToMe: " + angle + " degrees");
+        return angle;
     }
 
     public boolean retrieveMountains(){
@@ -440,7 +451,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         double minDistance = Double.POSITIVE_INFINITY;
         String mountainName = "";
 
-        azimuth = 1.5;
         for (QueryDocumentSnapshot document : task.getResult()) {
             Map<String, Object> doc = document.getData();
             Log.d(TAG, document.getId() + " => " + document.getData());
@@ -454,12 +464,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             if (latLong != null) {
                 mountainLatitude = latLong.getLatitude();
                 mountainLongitude = latLong.getLongitude();
-                haversineDistance = getDistanceApprox(myLatitude, myLongitude, mountainLatitude, mountainLongitude);
+                haversineDistance = haversine(myLatitude, myLongitude, mountainLatitude, mountainLongitude);
 
-                double angle = isInFieldOfView(myLatitude, myLongitude, mountainLatitude,mountainLongitude,azimuth);
+                double mountainAngle = getMountainAngle(myLatitude, myLongitude, mountainLatitude,mountainLongitude);
+                double angle = mountainAngle - azimuth;
                 Log.d(TAG, "onComplete: angle " + angle);
 
-                if (angle <= 20*Math.PI/180) {
+                if (angle <= 40*Math.PI/180) {
                     if (haversineDistance < minDistance) {
                         minDistance = haversineDistance;
                         mountainName = document.getId();
