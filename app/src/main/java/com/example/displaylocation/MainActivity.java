@@ -145,9 +145,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                         textView3.setText(text3);
                         textView4.setText(text4);
                         textView5.setText(text5);
-                    }
-                    if (foundMountain) {
-                        setLocation();
+
+                        if (foundMountain) {
+                            setLocation();
+                        }
                     }
                     Log.d(TAG, "onClick: azimuth " + azimuth);
                 }
@@ -393,7 +394,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         b = Math.cos(theta1) * Math.cos(theta2) * Math.pow(Math.sin((lambda2 - lambda1) / 2), 2);
         double distance = 2 * r * Math.asin(Math.sqrt(a + b));
     }*/
-    
+
     public static double haversine(double lat1, double lon1, double lat2, double lon2) {
         // Code modified from: https://towardsdatascience.com/heres-how-to-calculate-distance-between-2-geolocations-in-python-93ecab5bbba4
         // Source: https://en.wikipedia.org/wiki/Haversine_formula
@@ -505,10 +506,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 haversineDistance = haversine(myLatitude, myLongitude, mountainLatitude, mountainLongitude);
 
                 double mountainAngle = getMountainAngle(myLatitude, myLongitude, mountainLatitude,mountainLongitude);
-                double angle = mountainAngle - azimuth;
+                double angle = Math.abs( mountainAngle - azimuth );
                 Log.d(TAG, "onComplete: angle " + angle);
 
-                if (angle <= 40*Math.PI/180) {
+                if (angle <= 20*Math.PI/180) {
                     if (haversineDistance < minDistance) {
                         minDistance = haversineDistance;
                         mountainName = document.getId();
