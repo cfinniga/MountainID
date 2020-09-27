@@ -378,7 +378,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
     }
 
-    public static double haversine(double latitude1, double longitude1, double latitude2, double longitude2){
+    /*
+    public static double haversine(double latitude1, double longitude1, double latitude2, double longitude2) {
         double theta1, theta2, lambda1, lambda2;
         theta1 = degreeToRad(latitude1);
         theta2 = degreeToRad(latitude2);
@@ -386,17 +387,30 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         lambda2 = degreeToRad(longitude2);
         //double r = (6356.752)/2;
         //double r = (6356.752 + 6378.137)/2;
-        double r = (6378.137)/2;
+        double r = (6378.137) / 2;
         double a, b;
-        a = Math.pow( Math.sin( ( theta2 - theta1 ) / 2),2);
-        b = Math.cos( theta1 ) * Math.cos( theta2 ) * Math.pow( Math.sin( ( lambda2 - lambda1 ) /2),2);
-        double distance = 2 * r * Math.asin( Math.sqrt( a + b ) );
-        return distance;
+        a = Math.pow(Math.sin((theta2 - theta1) / 2), 2);
+        b = Math.cos(theta1) * Math.cos(theta2) * Math.pow(Math.sin((lambda2 - lambda1) / 2), 2);
+        double distance = 2 * r * Math.asin(Math.sqrt(a + b));
+    }*/
+    
+    public static double haversine(double lat1, double lon1, double lat2, double lon2) {
+        // Code modified from: https://towardsdatascience.com/heres-how-to-calculate-distance-between-2-geolocations-in-python-93ecab5bbba4
+        // Source: https://en.wikipedia.org/wiki/Haversine_formula
+        double r = 6371;
+        double phi1 = degreeToRad(lat1);
+        double phi2 = degreeToRad(lat2);
+        double delta_phi = degreeToRad(lat2 - lat1);
+        double delta_lambda = degreeToRad(lon2 - lon1);
+        double a = Math.pow( Math.sin(delta_phi / 2), 2) + Math.cos(phi1) * Math.cos(phi2) *  Math.pow( Math.sin(delta_lambda / 2), 2);
+        double res = r * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+        return res;
     }
 
     private static double degreeToRad(double degree){
         return degree*Math.PI / 180.0;
     }
+
 
     public static double getMountainAngle(double myLatitude, double myLongitude, double mountainLatitude, double mountainLongitude){
         double northLatitude = 90;
@@ -414,9 +428,33 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         Log.d(TAG, "getMountainAngle: dist to mountain " + c + " , dist to np "  + b + ", dist to me " + a);
         double mountainAngle = Math.acos( (Math.cos(a) - Math.cos(b)*Math.cos(c) )/(Math.sin(b)*Math.sin(c)));
 
+        // TODO make sure all 4 cases are covered
+        if ( (myLongitude - mountainLongitude >= -180)
+                && (myLongitude < mountainLongitude) ) {
+
+            // Mountain is on the right of user
+
+        } else if ( (myLongitude - mountainLongitude <= -180)
+                && (myLongitude < mountainLongitude) ) {
+
+            // Mountain is on the left of user
+            mountainAngle = -mountainAngle;
+
+        } else if ( (myLongitude - mountainLongitude >= 180)
+                && (myLongitude > mountainLongitude) ) {
+
+            // Mountain is on the right of user
+
+        } else if ( ( myLongitude - mountainLongitude <= 180)
+                && (myLongitude > mountainLongitude) ) {
+
+            // Mountain is on the left of user
+            mountainAngle = -mountainAngle;
+        }
         Log.d(TAG, "getMountainAngle: mountain angle " + mountainAngle + " degrees");
         return mountainAngle;
     }
+
     public static double getAngleToMe(double mountainAngle, double azimuth){
         double angle = mountainAngle - azimuth;
         Log.d(TAG, "getAngleToMe: " + angle + " degrees");
