@@ -4,6 +4,8 @@ import android.util.Log;
 
 import org.junit.Test;
 
+import java.util.MissingFormatArgumentException;
+
 import static org.junit.Assert.*;
 
 public class MainActivityTest {
@@ -48,6 +50,7 @@ public class MainActivityTest {
 
     @Test
     public void haversine(){
+        // Test data from Google Maps
         double lyonLat = 45.7597;
         double lyonLong = 4.8422;
         double parisLat = 48.8567;
@@ -85,47 +88,74 @@ public class MainActivityTest {
 
     @Test
     public void retrieveMountains() {
-        double myLat = 49;
-        double myLong = 122;
-        double azimuth = 0;
-        //MainActivity.retrieveMountains(myLat, myLong, azimuth);
     }
 
     @Test
     public void isInCorrectQuadrant(){
-        // Since we don't have any ground truth, these tests will just be checking that the mountain is in the correct quadrant
-        //Port moody test
+        // These tests will just be checking that the mountain is in the correct quadrant
+        // Testing with (myLat, myLong) in Port moody
         double myLat = 49.292647;
         double myLong =  -122.829899;
         double mountainLat;
         double mountainLong;
         double delta = (45.0)*Math.PI/180;
-        double azimuth;
         double angle;
         double expected;
         double unexpected;
 
-        // Eagle Mountain
+        // Eagle Mountain Test
+        // Expected: North of me
         mountainLat = 49.348547;
         mountainLong = -122.830151;
-        azimuth = 0;
         angle = MainActivity.getMountainAngle(myLat, myLong, mountainLat, mountainLong);
         Log.d(TAG, "getMountainAngle: Eagle angle " + angle);
         assertEquals(0, angle, delta);
 
-        //azimuth = -2.059;
-        /*
-        angle = MainActivity.getMountainAngle(myLat, myLong, mountainLat, mountainLong);
-        Log.d(TAG, "getMountainAngle: Eagle angle " + angle);
-        assertNotEquals(0, angle, delta);
-        */
+        // Basic test 1
+        myLat = 0;
+        myLong = 10;
+        mountainLat = 45;
+        mountainLong = 10;
+        expected = 0;
+        delta = 0.2;
 
-        // Mount Seymour 49.398515, -122.946944
-        // Is northwest of "me"
+        angle = MainActivity.getMountainAngle(myLat, myLong, mountainLat, mountainLong);
+        Log.d(TAG, "getMountainAngle: test angle " + angle);
+        assertEquals(expected, angle, delta);
+
+        // Basic test 1
+        myLat = 0;
+        myLong = 0;
+        mountainLat = 90;
+        mountainLong = 0;
+        expected = 0;
+        delta = 0.2;
+
+        angle = MainActivity.getMountainAngle(myLat, myLong, mountainLat, mountainLong);
+        Log.d(TAG, "getMountainAngle: test angle " + angle);
+        assertEquals(expected, angle, delta);
+
+        // Basic test 2
+        myLat = 0;
+        myLong = 90;
+        mountainLat = 0;
+        mountainLong = 0;
+        expected = -Math.PI/2;
+        delta = 0.2;
+
+        angle = MainActivity.getMountainAngle(myLat, myLong, mountainLat, mountainLong);
+        Log.d(TAG, "getMountainAngle: test angle2 " + angle);
+        assertEquals(expected, angle, delta);
+
+        // Mount Seymour test 49.398515, -122.946944
+        // Expected: northwest of me
         mountainLat = 49.398515;
         mountainLong = -122.946944;
+        myLat = 49.292647;
+        myLong =  -122.829899;
 
-        expected = -Math.PI/4;
+        expected = -Math.PI/4; // This is actually not completely correct for a sphere
+        delta = Math.PI/4;
         angle = MainActivity.getMountainAngle(myLat, myLong, mountainLat, mountainLong);
         Log.d(TAG, "getMountainAngle: Seymour angle " + angle);
         assertEquals(expected, angle, delta);
@@ -135,7 +165,7 @@ public class MainActivityTest {
         Log.d(TAG, "getMountainAngle: Seymour angle " + angle);
         assertNotEquals(unexpected, angle, delta);
 
-        // Burnaby Mountain
+        // Burnaby Mountain test
         mountainLat = 49.277177;
         mountainLong = -122.916175;
 
