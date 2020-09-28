@@ -1,4 +1,4 @@
-# :mount_fuji: Mountains
+# :mount_fuji: MountainID
 
 ## How to build
 You can build the APK in Android studio, however there are still bugs on some phones. Feel free to leave an issue of a bug you find!
