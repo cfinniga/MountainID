@@ -97,6 +97,60 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         }
 
+
+        locationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                myLatitude = location.getLatitude();
+                myLongitude = location.getLongitude();
+
+                String text1 = "Latitude: " + myLatitude;
+                String text2 = "Longitude: " + myLongitude;
+
+                Log.d(TAG, "onComplete: " + text1 + " " + text2);
+            }
+
+            @Override
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+
+            }
+
+            @Override
+            public void onProviderEnabled(String provider) {
+
+            }
+
+            @Override
+            public void onProviderDisabled(String provider) {
+                Toast.makeText(MainActivity.this, "Disabled", Toast.LENGTH_SHORT).show();
+                mLocationPermissionGranted = false;
+                if (checkMapServices()) {
+                    if (mLocationPermissionGranted) {
+                        Log.d(TAG, "onProviderDisabled: permission grantedddd");
+                    } else {
+                        getLocationPermission();
+                    }
+                }
+            }
+        };
+
+        // Vivek's code
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        if (locationManager.isProviderEnabled(locationManager.NETWORK_PROVIDER)) {
+            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0,  locationListener);
+            Log.d(TAG, "onCreate: provider enabled");
+        }
+        else if (locationManager.isProviderEnabled(locationManager.GPS_PROVIDER)){
+            locationManager.requestLocationUpdates(locationManager.GPS_PROVIDER, 0, 0, locationListener);
+            Log.d(TAG, "onCreate: provider enabled");
+        }
+
+
         btLocation = findViewById(R.id.bt_location);
         textView1 = findViewById(R.id.textView);
         textView2 = findViewById(R.id.textView2);
@@ -157,56 +211,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 }
             }
         });
-
-        locationListener = new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-                myLatitude = location.getLatitude();
-                myLongitude = location.getLongitude();
-
-                String text1 = "Latitude: " + myLatitude;
-                String text2 = "Longitude: " + myLongitude;
-
-                Log.d(TAG, "onComplete: " + text1 + " " + text2);
-            }
-
-            @Override
-            public void onStatusChanged(String provider, int status, Bundle extras) {
-
-            }
-
-            @Override
-            public void onProviderEnabled(String provider) {
-
-            }
-
-            @Override
-            public void onProviderDisabled(String provider) {
-                Toast.makeText(MainActivity.this, "Disabled", Toast.LENGTH_SHORT).show();
-                mLocationPermissionGranted = false;
-                if (checkMapServices()) {
-                    if (mLocationPermissionGranted) {
-                        Log.d(TAG, "onProviderDisabled: permission grantedddd");
-                    } else {
-                        getLocationPermission();
-                    }
-                }
-            }
-        };
-
-        // Vivek's code
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-        if (locationManager.isProviderEnabled(locationManager.NETWORK_PROVIDER)) {
-            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0,  locationListener);
-        }
-        else if (locationManager.isProviderEnabled(locationManager.GPS_PROVIDER)){
-            locationManager.requestLocationUpdates(locationManager.GPS_PROVIDER, 0, 0, locationListener);
-        }
     }
 
     @Override
@@ -282,6 +286,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         azimuth =  orientationAngles[0];
         //Log.d(TAG, "updateOrientationAngles: Azimuth\t" + orientationAngles[0] + "\tPitch\t" + orientationAngles[1] + "\tRoll\t" + orientationAngles[2]);
         // "orientationAngles" now has up-to-date information.
+
+        //TODO remove
+        //azimuth = 0;
     }
 
     @Override
@@ -378,22 +385,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
         }
     }
-
-    /*
-    public static double haversine(double latitude1, double longitude1, double latitude2, double longitude2) {
-        double theta1, theta2, lambda1, lambda2;
-        theta1 = degreeToRad(latitude1);
-        theta2 = degreeToRad(latitude2);
-        lambda1 = degreeToRad(longitude1);
-        lambda2 = degreeToRad(longitude2);
-        //double r = (6356.752)/2;
-        //double r = (6356.752 + 6378.137)/2;
-        double r = (6378.137) / 2;
-        double a, b;
-        a = Math.pow(Math.sin((theta2 - theta1) / 2), 2);
-        b = Math.cos(theta1) * Math.cos(theta2) * Math.pow(Math.sin((lambda2 - lambda1) / 2), 2);
-        double distance = 2 * r * Math.asin(Math.sqrt(a + b));
-    }*/
 
     public static double haversine(double lat1, double lon1, double lat2, double lon2) {
         // Code modified from: https://towardsdatascience.com/heres-how-to-calculate-distance-between-2-geolocations-in-python-93ecab5bbba4

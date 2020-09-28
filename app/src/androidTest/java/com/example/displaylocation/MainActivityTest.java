@@ -2,6 +2,13 @@ package com.example.displaylocation;
 
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QuerySnapshot;
+
 import org.junit.Test;
 
 import java.util.MissingFormatArgumentException;
@@ -89,6 +96,35 @@ public class MainActivityTest {
     @Test
     public void retrieveMountains() {
     }
+
+    @Test
+    public void getClosestMountain() {
+        //
+        String collection = "zone1";
+        double myLat = 49.292647;
+        double myLong =  -122.829899;
+        double azimuth = 0;
+        String closestMountain = "";
+        double globalMinDistance = Double.POSITIVE_INFINITY;
+
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        db.collection(collection).get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                if (task.isSuccessful()) {
+                    MountainInfo info = MainActivity.getClosestMountain(task, myLat, myLong, azimuth);
+                    String mountain = info.name;
+                    double distance = info.distance;
+                } else {
+                    Log.w(TAG, "Error getting documents.", task.getException());
+                }
+
+            }
+        });
+    }
+
+
 
     @Test
     public void isInCorrectQuadrant(){
