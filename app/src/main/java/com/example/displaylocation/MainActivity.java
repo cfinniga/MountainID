@@ -90,21 +90,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-
-
         if(!mLocationPermissionGranted){
             getLocationPermission();
         }
         checkMapServices();
-        /*
-        if(checkMapServices()){
-            if(!mLocationPermissionGranted){
-                getLocationPermission();
-            }
-        }*/
-
-
-
 
         btLocation = findViewById(R.id.bt_location);
         textView1 = findViewById(R.id.textView);
@@ -112,8 +101,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         textView3 = findViewById(R.id.textView3);
         textView4 = findViewById(R.id.textView4);
         textView5 = findViewById(R.id.textView5);
-
-
 
         // Initialize fusedLocation
         btLocation.setOnClickListener(new View.OnClickListener() {
@@ -181,7 +168,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     protected void onResume() {
         super.onResume();
 
-
         locationListener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {
@@ -218,8 +204,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         };
 
-
-
         // get an instance of the default rotation vector sensor
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
@@ -254,8 +238,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             locationManager.requestLocationUpdates(locationManager.GPS_PROVIDER, 0, 0, locationListener);
             Log.d(TAG, "onCreate: provider enabled");
         }
-
-
     }
 
     @Override
