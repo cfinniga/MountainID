@@ -92,7 +92,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         if(!mLocationPermissionGranted){
             getLocationPermission();
         }
-        checkMapServices();
+        //checkMapServices();
 
         btLocation = findViewById(R.id.bt_location);
         textView1 = findViewById(R.id.textView);
@@ -101,10 +101,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         textView4 = findViewById(R.id.textView4);
         textView5 = findViewById(R.id.textView5);
 
-        // Initialize fusedLocation
         btLocation.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                checkMapServices();
 
                 Calendar calendar = Calendar.getInstance();
                 int minute = calendar.get(Calendar.MINUTE);
@@ -119,7 +119,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     boolean foundMountain = retrieveMountains();
                     if (myLatitude == NO_LATITUDE || myLongitude == NO_LONGITUDE) {
                         // Set latitude on Text View
-                        String text1 = "No location found";
+                        String text1 = "Can't detect your location.";
                         textView1.setText(text1);
                         textView2.setText("");
                         textView3.setText("");
@@ -143,6 +143,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
                         if (foundMountain) {
                             setLocation();
+                        }
+                        else {
+                            textView3.setText("No mountains over here");
+                            textView4.setText(text4);
                         }
                     }
                     Log.d(TAG, "onClick: azimuth " + azimuth);
@@ -189,8 +193,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
             }
 
+
             @Override
             public void onProviderDisabled(String provider) {
+                /*
                 Toast.makeText(MainActivity.this, "Disabled", Toast.LENGTH_SHORT).show();
                 mLocationPermissionGranted = false;
                 if (checkMapServices()) {
@@ -199,7 +205,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     } else {
                         getLocationPermission();
                     }
-                }
+                }*/
             }
         };
 
