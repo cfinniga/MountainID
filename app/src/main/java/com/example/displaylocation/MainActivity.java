@@ -83,7 +83,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     // for gravity sensor
     float[] mOrientation = new float[3];
     float[] rMat = new float[9];
-    private int mAzimuth = 0; // degree
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -261,13 +260,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     0, magnetometerReading.length);
         }
         updateOrientationAngles();
-        if( event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR ){
-            // calculate th rotation matrix
-            SensorManager.getRotationMatrixFromVector( rMat, event.values );
-            // get the azimuth value (orientation[0]) in degree
-            mAzimuth = (int) ( Math.toDegrees( SensorManager.getOrientation( rMat, mOrientation )[0] ) + 360 ) % 360;
-            Log.d(TAG, "onSensorChanged: gravity sensor " + mAzimuth);
-        }
     }
 
     // Compute the three orientation angles based on the most recent readings from
@@ -280,11 +272,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         SensorManager.getOrientation(rotationMatrix, orientationAngles);
         azimuth =  orientationAngles[0];
-        //Log.d(TAG, "updateOrientationAngles: Azimuth\t" + orientationAngles[0] + "\tPitch\t" + orientationAngles[1] + "\tRoll\t" + orientationAngles[2]);
         // "orientationAngles" now has up-to-date information.
-
-        //TODO remove
-        //azimuth = 0;
     }
 
     @Override
@@ -296,8 +284,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         double latitude = Double.parseDouble(latitudeStr);
         double longitude = Double.parseDouble(longitudeStr);
 
-        // TODO some calculations to get name
-
         String collection = "zone1";
         return collection;
     }
@@ -307,7 +293,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         String text3 = "Closest Mountain: " + closestMountain;
         String text4 = String.format(Locale.US, "%1.3f km away", globalMinDistance);
         String text5 = String.format(Locale.US, "Azimuth %1.3f", azimuth);
-        Log.d(TAG, "onComplete: " + text1 + " " + text2);
 
         // Set latitude on Text View
         textView1.setText(text1);
@@ -511,6 +496,4 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         info.name = mountainName;
         return info;
     }
-
-
 }
