@@ -91,64 +91,19 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         setContentView(R.layout.activity_main);
 
 
+
+        if(!mLocationPermissionGranted){
+            getLocationPermission();
+        }
+        checkMapServices();
+        /*
         if(checkMapServices()){
             if(!mLocationPermissionGranted){
                 getLocationPermission();
             }
-        }
+        }*/
 
 
-        locationListener = new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-                myLatitude = location.getLatitude();
-                myLongitude = location.getLongitude();
-
-                String text1 = "Latitude: " + myLatitude;
-                String text2 = "Longitude: " + myLongitude;
-
-                Log.d(TAG, "onComplete: " + text1 + " " + text2);
-            }
-
-            @Override
-            public void onStatusChanged(String provider, int status, Bundle extras) {
-
-            }
-
-            @Override
-            public void onProviderEnabled(String provider) {
-
-            }
-
-            @Override
-            public void onProviderDisabled(String provider) {
-                Toast.makeText(MainActivity.this, "Disabled", Toast.LENGTH_SHORT).show();
-                mLocationPermissionGranted = false;
-                if (checkMapServices()) {
-                    if (mLocationPermissionGranted) {
-                        Log.d(TAG, "onProviderDisabled: permission grantedddd");
-                    } else {
-                        getLocationPermission();
-                    }
-                }
-            }
-        };
-
-        // Vivek's code
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-        if (locationManager.isProviderEnabled(locationManager.NETWORK_PROVIDER)) {
-            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0,  locationListener);
-            Log.d(TAG, "onCreate: provider enabled");
-        }
-        else if (locationManager.isProviderEnabled(locationManager.GPS_PROVIDER)){
-            locationManager.requestLocationUpdates(locationManager.GPS_PROVIDER, 0, 0, locationListener);
-            Log.d(TAG, "onCreate: provider enabled");
-        }
 
 
         btLocation = findViewById(R.id.bt_location);
@@ -211,6 +166,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 }
             }
         });
+
+
+
     }
 
     @Override
@@ -222,6 +180,44 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     @Override
     protected void onResume() {
         super.onResume();
+
+
+        locationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                myLatitude = location.getLatitude();
+                myLongitude = location.getLongitude();
+
+                String text1 = "Latitude: " + myLatitude;
+                String text2 = "Longitude: " + myLongitude;
+
+                Log.d(TAG, "onComplete: " + text1 + " " + text2);
+            }
+
+            @Override
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+
+            }
+
+            @Override
+            public void onProviderEnabled(String provider) {
+
+            }
+
+            @Override
+            public void onProviderDisabled(String provider) {
+                Toast.makeText(MainActivity.this, "Disabled", Toast.LENGTH_SHORT).show();
+                mLocationPermissionGranted = false;
+                if (checkMapServices()) {
+                    if (mLocationPermissionGranted) {
+                        Log.d(TAG, "onProviderDisabled: permission grantedddd");
+                    } else {
+                        getLocationPermission();
+                    }
+                }
+            }
+        };
+
 
 
         // get an instance of the default rotation vector sensor
@@ -243,6 +239,23 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             sensorManager.registerListener(this, gravity, SensorManager.SENSOR_DELAY_NORMAL, SensorManager.SENSOR_DELAY_UI);
         }
 
+        // Vivek's location manager code
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        if (locationManager.isProviderEnabled(locationManager.NETWORK_PROVIDER)) {
+            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0,  locationListener);
+            Log.d(TAG, "onCreate: provider enabled");
+        }
+        else if (locationManager.isProviderEnabled(locationManager.GPS_PROVIDER)){
+            locationManager.requestLocationUpdates(locationManager.GPS_PROVIDER, 0, 0, locationListener);
+            Log.d(TAG, "onCreate: provider enabled");
+        }
+
+
     }
 
     @Override
@@ -250,6 +263,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         super.onPause();
 
         sensorManager.unregisterListener(this);
+        // locationManager.removeUpdates(locationListener);
     }
 
     // Get readings from accelerometer and magnetometer. To simplify calculations,
